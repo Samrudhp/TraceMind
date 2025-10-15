@@ -2,8 +2,6 @@
 import uuid
 from typing import List, Dict, Any, Optional
 import chromadb
-from chromadb.config import Settings
-from chromadb.api.models.Collection import Collection
 import numpy as np
 
 
@@ -17,18 +15,12 @@ class ChromaService:
             persist_directory: Directory for persistent storage
         """
         print(f"Initializing ChromaDB at: {persist_directory}")
-        self.client = chromadb.Client(
-            Settings(
-                chroma_db_impl="duckdb+parquet",
-                persist_directory=persist_directory,
-                anonymized_telemetry=False
-            )
-        )
+        self.client = chromadb.PersistentClient(path=persist_directory)
         self.collection_name = "memories"
         self.collection = self._get_or_create_collection()
         print(f"Collection '{self.collection_name}' ready with {self.collection.count()} items")
     
-    def _get_or_create_collection(self) -> Collection:
+    def _get_or_create_collection(self) -> Any:
         """Get or create the memories collection."""
         return self.client.get_or_create_collection(
             name=self.collection_name,

@@ -10,6 +10,10 @@ function Dashboard() {
   const [selectedPoint, setSelectedPoint] = useState(null)
   const [loading, setLoading] = useState(false)
   const [compacting, setCompacting] = useState(false)
+  const [runningDemo, setRunningDemo] = useState(false)
+  const [demoPhases, setDemoPhases] = useState([])
+  const [currentPhase, setCurrentPhase] = useState(0)
+  const [demoResults, setDemoResults] = useState(null)
 
   useEffect(() => {
     loadDashboardData()
@@ -54,6 +58,63 @@ function Dashboard() {
       alert('Error during compaction: ' + (err.response?.data?.detail || err.message))
     } finally {
       setCompacting(false)
+    }
+  }
+
+  const handleDemo = async () => {
+    if (!confirm('🚀 Run Full TraceMind Lifecycle Demo?\n\nThis will simulate:\n• Day 1: Initial learning phase\n• Day 2: Knowledge accumulation\n• Compaction: Memory consolidation\n• Day 3: Recent experiences\n• Final evolution with clustering\n\nExperience the complete memory pipeline!')) return
+
+    setRunningDemo(true)
+    setSelectedPoint(null)
+    setCurrentPhase(0)
+    setDemoPhases([])
+    
+    try {
+      const response = await axios.post('/api/demo')
+      
+      setDemoResults(response.data)
+      setDemoPhases(response.data.phases)
+      setCurrentPhase(0)
+      
+      // Start with phase 0
+      updateToPhase(0, response.data.phases)
+      
+      alert(`� TraceMind Lifecycle Demo Started!\n\n${response.data.lifecycle_summary.total_memories_added} memories across ${response.data.lifecycle_summary.topics_covered.length} topics\n${response.data.lifecycle_summary.total_compactions} compactions with ${response.data.lifecycle_summary.total_merges} merges\n\nUse the phase controls to explore the evolution!`)
+      
+    } catch (err) {
+      alert('Demo failed: ' + (err.response?.data?.detail || err.message))
+    } finally {
+      setRunningDemo(false)
+    }
+  }
+
+  const updateToPhase = (phaseIndex, phases = demoPhases) => {
+    if (!phases || phaseIndex >= phases.length) return
+    
+    const phase = phases[phaseIndex]
+    setCurrentPhase(phaseIndex)
+    
+    // Update UI with phase data
+    if (phase.umap_data) {
+      setUmapData(phase.umap_data)
+    }
+    
+    // For final phase, update everything
+    if (phaseIndex === phases.length - 1 && demoResults) {
+      setStats(demoResults.final_stats)
+      setCompactionLog(demoResults.compaction_log.events || [])
+    }
+  }
+
+  const nextPhase = () => {
+    if (currentPhase < demoPhases.length - 1) {
+      updateToPhase(currentPhase + 1)
+    }
+  }
+
+  const prevPhase = () => {
+    if (currentPhase > 0) {
+      updateToPhase(currentPhase - 1)
     }
   }
 
@@ -169,14 +230,85 @@ function Dashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold text-cyan-400">Dashboard</h2>
-        <button
-          onClick={handleCompact}
-          disabled={compacting}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 text-white font-semibold rounded-lg transition shadow-lg"
-        >
-          {compacting ? 'Compacting...' : '🗜️ Run Compaction'}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={handleDemo}
+            disabled={runningDemo}
+            className="px-6 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-700 hover:to-blue-700 disabled:from-slate-600 disabled:to-slate-600 text-white font-semibold rounded-lg transition shadow-lg transform hover:scale-105"
+          >
+            {runningDemo ? '🚀 Running Demo...' : '🚀 Run Demo'}
+          </button>
+          <button
+            onClick={handleCompact}
+            disabled={compacting}
+            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-slate-600 text-white font-semibold rounded-lg transition shadow-lg"
+          >
+            {compacting ? '🗜️ Compacting...' : '🗜️ Run Compaction'}
+          </button>
+        </div>
       </div>
+
+      {/* Demo Phase Navigation */}
+      {demoPhases.length > 0 && (
+        <div className="bg-gradient-to-r from-purple-900/50 to-blue-900/50 rounded-lg p-6 border border-purple-600/50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xl font-semibold text-purple-300">🎭 TraceMind Lifecycle Demo</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={prevPhase}
+                disabled={currentPhase === 0}
+                className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-white rounded text-sm transition"
+              >
+                ← Previous
+              </button>
+              <span className="text-cyan-400 font-semibold">
+                Phase {currentPhase + 1} of {demoPhases.length}
+              </span>
+              <button
+                onClick={nextPhase}
+                disabled={currentPhase === demoPhases.length - 1}
+                className="px-3 py-1 bg-slate-700 hover:bg-slate-600 disabled:bg-slate-800 text-white rounded text-sm transition"
+              >
+                Next →
+              </button>
+            </div>
+          </div>
+          
+          {demoPhases[currentPhase] && (
+            <div className="bg-slate-800/50 rounded p-4">
+              <h4 className="text-lg font-semibold text-cyan-400 mb-2">
+                {demoPhases[currentPhase].name}
+              </h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                {demoPhases[currentPhase].memories_added && (
+                  <div>
+                    <span className="text-slate-400">Memories Added:</span>
+                    <span className="text-green-400 font-semibold ml-1">{demoPhases[currentPhase].memories_added}</span>
+                  </div>
+                )}
+                {demoPhases[currentPhase].total_memories && (
+                  <div>
+                    <span className="text-slate-400">Total Memories:</span>
+                    <span className="text-cyan-400 font-semibold ml-1">{demoPhases[currentPhase].total_memories}</span>
+                  </div>
+                )}
+                {demoPhases[currentPhase].compaction_results && (
+                  <div>
+                    <span className="text-slate-400">Clusters Merged:</span>
+                    <span className="text-purple-400 font-semibold ml-1">{demoPhases[currentPhase].compaction_results.clusters_merged}</span>
+                  </div>
+                )}
+                {demoPhases[currentPhase].topics && (
+                  <div>
+                    <span className="text-slate-400">Topics:</span>
+                    <span className="text-yellow-400 font-semibold ml-1">{demoPhases[currentPhase].topics.join(', ')}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats Cards */}
       {stats && (
@@ -300,6 +432,63 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      {/* Demo Results Summary */}
+      {demoResults && (
+        <div className="bg-gradient-to-r from-green-900/30 to-cyan-900/30 rounded-lg p-6 border border-green-600/50">
+          <h3 className="text-xl font-semibold text-green-300 mb-4">🎯 Demo Results Summary</h3>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            <div className="bg-slate-800/50 rounded p-4">
+              <div className="text-2xl font-bold text-cyan-400">{demoResults.lifecycle_summary.total_memories_added}</div>
+              <div className="text-sm text-slate-400">Total Memories Added</div>
+            </div>
+            <div className="bg-slate-800/50 rounded p-4">
+              <div className="text-2xl font-bold text-purple-400">{demoResults.lifecycle_summary.total_merges}</div>
+              <div className="text-sm text-slate-400">Total Memory Merges</div>
+            </div>
+            <div className="bg-slate-800/50 rounded p-4">
+              <div className="text-2xl font-bold text-yellow-400">{demoResults.lifecycle_summary.topics_covered.length}</div>
+              <div className="text-sm text-slate-400">Topics Covered</div>
+            </div>
+          </div>
+
+          {/* Recall Tests */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold text-slate-300 mb-3">🧠 Recall Functionality Test</h4>
+            <div className="space-y-2">
+              {demoResults.recall_tests.map((test, idx) => (
+                <div key={idx} className="bg-slate-700/50 rounded p-3">
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <span className="text-cyan-400 font-medium">Query: "{test.query}"</span>
+                      <p className="text-slate-300 text-sm mt-1">
+                        Found {test.results_count} results • Expected: {test.expected_topic}
+                      </p>
+                      {test.top_result && (
+                        <p className="text-slate-400 text-xs mt-1 italic">
+                          Top result: {test.top_result}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`px-2 py-1 rounded text-xs font-semibold ${
+                      test.results_count > 0 ? 'bg-green-900/50 text-green-300' : 'bg-red-900/50 text-red-300'
+                    }`}>
+                      {test.results_count > 0 ? '✓ Found' : '✗ None'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="text-center">
+            <p className="text-slate-300 text-sm">
+              🎉 Full TraceMind pipeline demonstrated: Memory ingestion → Temporal decay → Compaction → Semantic recall
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

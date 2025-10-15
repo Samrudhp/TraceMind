@@ -2,7 +2,7 @@
 import json
 import os
 from datetime import datetime, timezone
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Optional
 import numpy as np
 
 
@@ -18,7 +18,19 @@ def to_iso_string(dt: datetime) -> str:
 
 def from_iso_string(iso_str: str) -> datetime:
     """Parse ISO8601 string to datetime."""
-    return datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+    # Handle both naive and aware timestamps
+    try:
+        dt = datetime.fromisoformat(iso_str.replace('Z', '+00:00'))
+        # If naive, assume UTC
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
+    except ValueError:
+        # Fallback for other formats
+        dt = datetime.fromisoformat(iso_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt
 
 
 def calculate_age_days(timestamp_str: str) -> float:
@@ -81,9 +93,9 @@ def create_metadata(
         "timestamp": to_iso_string(get_utc_now()),
         "importance": float(importance),
         "source": source,
-        "last_merged_at": None,
         "merge_count": 0
     }
     if topic:
         metadata["topic"] = topic
+    # Note: last_merged_at is only added when memories are merged
     return metadata
